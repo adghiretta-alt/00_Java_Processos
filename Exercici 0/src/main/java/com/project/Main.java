@@ -1,28 +1,72 @@
 package com.project;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Main {
+
     public static void main(String[] args) {
-        // Informació que volem passar als threads
-        String info1 = "Missatge pel Thread 1A";
-        String info2 = "Missatge pel Thread 2A";
-        int number = 42;
 
-        // Thread amb lambda que rep info1
-        new Thread(() -> {
-            System.out.println(Thread.currentThread().getName() + " → " + info1);
-        }, "Thread 1").start();
+        ConcurrentHashMap<String, Double> datos = new ConcurrentHashMap<>();
 
-        // Thread amb lambda que rep info2 i un número
-        new Thread(() -> {
-            System.out.println(Thread.currentThread().getName() + " → " + info2 + " i el número " + number);
-        }, "Thread 2").start();
+        ExecutorService executor = Executors.newFixedThreadPool(3);
 
-        // Thread amb classe anònima que també fa servir informació
-        new Thread() {
-            @Override
-            public void run() {
-                System.out.println(Thread.currentThread().getName() + " → " + "Execució amb classe anònima, número *2 = " + (number * 2));
-            }
-        }.start();
+        Runnable recibirOperacion = () -> {
+            datos.put("saldo", 1000.0);
+            datos.put("importe", 500.0);
+
+            System.out.println("Operación bancaria recibida.");
+            System.out.println("Saldo inicial: " + datos.get("saldo") + " €");
+            System.out.println("Importe de la operación: " + datos.get("importe") + " €");
+        };
+
+        Runnable calcularComision = () -> {
+            double saldo = datos.get("saldo");
+            double importe = datos.get("importe");
+
+            double comision = importe * 0.02;
+            double saldoActualizado = saldo + importe - comision;
+
+            datos.put("comision", comision);
+            datos.put("saldo", saldoActualizado);
+
+            System.out.println("Comisión calculada: " + comision + " €");
+            System.out.println("Saldo actualizado: " + saldoActualizado + " €");
+        };
+
+        Callable<Double> consultarSaldo = () -> {
+            double saldoFinal = datos.get("saldo");
+
+            System.out.println("Consultando saldo final...");
+
+            return saldoFinal;
+        };
+
+        try {
+            executor.submit(recibirOperacion);
+
+            Thread.sleep(100);
+
+            executor.submit(calcularComision);
+
+            Thread.sleep(100);
+
+            Future<Double> resultado = executor.submit(consultarSaldo);
+
+            double saldoFinal = resultado.get();
+
+            System.out.println();
+            System.out.println("===== RESULTADO FINAL =====");
+            System.out.println("Saldo final de la operación: "
+                    + saldoFinal + " €");
+            System.out.println("===========================");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            executor.shutdown();
+        }
     }
 }
